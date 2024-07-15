@@ -29,6 +29,8 @@ public class TestAccessControlMetaData implements MetaData {
 
   private String operate;
 
+  private String key;
+
   public TestAccessControlMetaData(List<Son> sons) {
     this.sons = sons;
   }
@@ -113,6 +115,15 @@ public class TestAccessControlMetaData implements MetaData {
 
   public void setSons(List<Son> sons) {
     this.sons = sons;
+  }
+
+  @Override
+  public String getKey() {
+    return key;
+  }
+
+  public void setKey(String key) {
+    this.key = key;
   }
 
 

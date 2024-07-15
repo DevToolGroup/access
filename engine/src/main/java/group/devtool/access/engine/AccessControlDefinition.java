@@ -16,19 +16,20 @@ import java.util.List;
 public interface AccessControlDefinition {
 
   /**
-   * @return 访问控制权限
+   * @return 访问操作控制
    */
-  List<Privilege> getPrivileges();
+  List<? extends  Privilege> getPrivileges();
 
   /**
    * @return 访问范围控制
    */
-  List<Scope> getScopes();
+  List<? extends Scope> getScopes();
 
   /**
    * @return 访问内容限制
    */
-  List<View> getFields();
+  List<? extends View> getFields();
 
-  
+
+  String getKey();
 }

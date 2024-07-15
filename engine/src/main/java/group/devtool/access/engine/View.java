@@ -16,7 +16,7 @@ public interface View {
   /**
    * @return 匹配条件
    */
-  public Condition condition();
+  public Condition getCondition();
 
   /**
    * 修剪视图

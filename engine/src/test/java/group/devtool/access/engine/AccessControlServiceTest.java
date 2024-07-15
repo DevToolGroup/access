@@ -1,6 +1,6 @@
 /*
- * The Access Access Control Engine, 
- * unlike the RBAC model that utilizes static data to implement access control, 
+ * The Access Access Control Engine,
+ * unlike the RBAC model that utilizes static data to implement access control,
  * realizes API access control by evaluating if dynamic data satisfies the access control rules.
  *
  * License: GNU GENERAL PUBLIC LICENSE, Version 3, 29 June 2007
@@ -26,6 +26,7 @@ import org.hibernate.Transaction;
 import org.hibernate.cfg.Configuration;
 import org.junit.FixMethodOrder;
 import org.junit.Test;
+
 import javax.persistence.EntityManager;
 import javax.persistence.TypedQuery;
 import javax.persistence.criteria.CriteriaBuilder;
@@ -34,7 +35,7 @@ import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
 
 import group.devtool.access.engine.AccessControlService.AccessSpecificationBuilder;
-import group.devtool.access.engine.ScopeImpl.SQLImpl;
+import group.devtool.access.engine.ScopeImpl.WhereImpl;
 import group.devtool.access.engine.entity.TestAccessControlEntity;
 import group.devtool.access.engine.entity.TestAccessControlMetaData;
 import group.devtool.access.engine.entity.TestAccessControlResponse;
@@ -43,371 +44,429 @@ import group.devtool.access.engine.entity.TestSpecification;
 @FixMethodOrder
 public class AccessControlServiceTest {
 
-  @Test
-  public void testControl1() {
-    SessionFactory factory = getEntityManagerFactory();
-    // 初始化数据
-    init(factory);
+	@Test
+	public void testAccessControlDefinitionFromFile() {
+		SessionFactory factory = getEntityManagerFactory();
+		// 初始化数据
+		init(factory);
 
-    EntityManager manager = factory.createEntityManager();
-    List<TestAccessControlEntity> entities = query(manager);
+		EntityManager manager = factory.createEntityManager();
+		List<TestAccessControlEntity> entities = query(manager);
 
-    // 原始数据校验，
-    assertEquals(2, entities.size());
-    assertEquals("entity1", entities.get(0).getName());
-    assertEquals(true, entities.get(0).getMarried());
-    assertEquals("entity2", entities.get(1).getName());
-    assertEquals(true, entities.get(1).getMarried());
+		// 原始数据校验，
+		assertEquals(2, entities.size());
+		assertEquals("entity1", entities.get(0).getName());
+		assertEquals(true, entities.get(0).getMarried());
+		assertEquals("entity2", entities.get(1).getName());
+		assertEquals(true, entities.get(1).getMarried());
 
-    // mock 访问控制定义服务
-    AccessControlDefinitionService definitionService = mock(AccessControlDefinitionService.class);
-    when(definitionService.load(any())).thenReturn(new TestAccessControlDefinition());
+		// 执行访问控制的业务操作
+		AccessControlServiceImpl control = new AccessControlServiceImpl(new ResourcesAccessControlDefinitionService());
+		try {
+			List<TestAccessControlResponse> result = control.doControl(() -> {
+				TestAccessControlMetaData metadata = new TestAccessControlMetaData(10, "F", "get");
+				metadata.setKey("access.yml");
+				return metadata;
+			}, (consumer) -> {
+				CriteriaBuilder builder = manager.getCriteriaBuilder();
+				// 查询范围修改
+				return doOperation(manager, builder, consumer);
+			});
 
-    // 执行访问控制的业务操作
-    AccessControlServiceImpl control = new AccessControlServiceImpl(definitionService);
-    try {
-      List<TestAccessControlResponse> result = control.doControl(() -> {
-        return new TestAccessControlMetaData(10, "F", "get");
-      }, (consumer) -> {
-        CriteriaBuilder builder = manager.getCriteriaBuilder();
-        // 查询范围修改
-        return doOperation(manager, builder, consumer);
-      });
+			assertEquals(1, result.size());
+			assertNull(result.get(0).getMarried());
+			assertEquals("entity1", result.get(0).getName());
 
-      assertEquals(1, result.size());
-      assertNull(result.get(0).getMarried());
-      assertEquals("entity1", result.get(0).getName());
+		} catch (Exception e) {
+			fail(e.getMessage());
+		}
+	}
 
-    } catch (Exception e) {
-      fail(e.getMessage());
-    }
-  }
+	@Test
+	public void testControl1() {
+		SessionFactory factory = getEntityManagerFactory();
+		// 初始化数据
+		init(factory);
 
-  @Test
-  public void testControl2() {
-    SessionFactory factory = getEntityManagerFactory();
-    // 初始化数据
-    init(factory);
+		EntityManager manager = factory.createEntityManager();
+		List<TestAccessControlEntity> entities = query(manager);
 
-    EntityManager manager = factory.createEntityManager();
-    List<TestAccessControlEntity> entities = query(manager);
+		// 原始数据校验，
+		assertEquals(2, entities.size());
+		assertEquals("entity1", entities.get(0).getName());
+		assertEquals(true, entities.get(0).getMarried());
+		assertEquals("entity2", entities.get(1).getName());
+		assertEquals(true, entities.get(1).getMarried());
 
-    // 原始数据校验，
-    assertEquals(2, entities.size());
-    assertEquals("entity1", entities.get(0).getName());
-    assertEquals(true, entities.get(0).getMarried());
-    assertEquals("entity2", entities.get(1).getName());
-    assertEquals(true, entities.get(1).getMarried());
+		// mock 访问控制定义服务
+		AccessControlDefinitionService definitionService = mock(AccessControlDefinitionService.class);
+		when(definitionService.load(any())).thenReturn(new TestAccessControlDefinition());
 
-    // mock 访问控制定义服务
-    AccessControlDefinitionService definitionService = mock(AccessControlDefinitionService.class);
-    when(definitionService.load(any())).thenReturn(new NoPrivilegeTestAccessControlDefinition());
+		// 执行访问控制的业务操作
+		AccessControlServiceImpl control = new AccessControlServiceImpl(definitionService);
+		try {
+			List<TestAccessControlResponse> result = control.doControl(() -> {
+				return new TestAccessControlMetaData(10, "F", "get");
+			}, (consumer) -> {
+				CriteriaBuilder builder = manager.getCriteriaBuilder();
+				// 查询范围修改
+				return doOperation(manager, builder, consumer);
+			});
 
-    // 执行访问控制的业务操作
-    AccessControlServiceImpl control = new AccessControlServiceImpl(definitionService);
-    try {
-      control.doControl(() -> {
-        return new TestAccessControlMetaData(10, "F", "get");
-      }, (consumer) -> {
-        CriteriaBuilder builder = manager.getCriteriaBuilder();
-        // 查询范围修改
-        return doOperation(manager, builder, consumer);
-      });
-      fail("限制失效");
-    } catch (Exception e) {
-      assertTrue(e instanceof NoPrivilegeException);
-    }
-  }
+			assertEquals(1, result.size());
+			assertNull(result.get(0).getMarried());
+			assertEquals("entity1", result.get(0).getName());
 
-  @Test
-  public void testControl3() {
-    SessionFactory factory = getEntityManagerFactory();
-    // 初始化数据
-    init(factory);
+		} catch (Exception e) {
+			fail(e.getMessage());
+		}
+	}
 
-    EntityManager manager = factory.createEntityManager();
-    List<TestAccessControlEntity> entities = query(manager);
+	@Test
+	public void testControl2() {
+		SessionFactory factory = getEntityManagerFactory();
+		// 初始化数据
+		init(factory);
 
-    // 原始数据校验，
-    assertEquals(2, entities.size());
-    assertEquals("entity1", entities.get(0).getName());
-    assertEquals(true, entities.get(0).getMarried());
-    assertEquals("entity2", entities.get(1).getName());
-    assertEquals(true, entities.get(1).getMarried());
+		EntityManager manager = factory.createEntityManager();
+		List<TestAccessControlEntity> entities = query(manager);
 
-    // mock 访问控制定义服务
-    AccessControlDefinitionService definitionService = mock(AccessControlDefinitionService.class);
-    when(definitionService.load(any())).thenReturn(new NoScopeTestAccessControlDefinition());
+		// 原始数据校验，
+		assertEquals(2, entities.size());
+		assertEquals("entity1", entities.get(0).getName());
+		assertEquals(true, entities.get(0).getMarried());
+		assertEquals("entity2", entities.get(1).getName());
+		assertEquals(true, entities.get(1).getMarried());
 
-    // 执行访问控制的业务操作
-    AccessControlServiceImpl control = new AccessControlServiceImpl(definitionService);
-    try {
-      List<TestAccessControlResponse> result = control.doControl(() -> {
-        return new TestAccessControlMetaData(10, "F", "get");
-      }, (consumer) -> {
-        CriteriaBuilder builder = manager.getCriteriaBuilder();
-        // 查询范围修改
-        return doOperation(manager, builder, consumer);
-      });
+		// mock 访问控制定义服务
+		AccessControlDefinitionService definitionService = mock(AccessControlDefinitionService.class);
+		when(definitionService.load(any())).thenReturn(new NoPrivilegeTestAccessControlDefinition());
 
-      assertEquals(2, result.size());
-      assertEquals("entity1", result.get(0).getName());
-      assertNull(result.get(0).getMarried());
-      assertEquals("entity2", result.get(1).getName());
-      assertNull(result.get(1).getMarried());
+		// 执行访问控制的业务操作
+		AccessControlServiceImpl control = new AccessControlServiceImpl(definitionService);
+		try {
+			control.doControl(() -> {
+				return new TestAccessControlMetaData(10, "F", "get");
+			}, (consumer) -> {
+				CriteriaBuilder builder = manager.getCriteriaBuilder();
+				// 查询范围修改
+				return doOperation(manager, builder, consumer);
+			});
+			fail("限制失效");
+		} catch (Exception e) {
+			assertTrue(e instanceof NoPrivilegeException);
+		}
+	}
 
-    } catch (Exception e) {
-      assertTrue(e instanceof NoPrivilegeException);
-    }
-  }
+	@Test
+	public void testControl3() {
+		SessionFactory factory = getEntityManagerFactory();
+		// 初始化数据
+		init(factory);
 
-  @Test
-  public void testControl4() {
-    SessionFactory factory = getEntityManagerFactory();
-    // 初始化数据
-    init(factory);
+		EntityManager manager = factory.createEntityManager();
+		List<TestAccessControlEntity> entities = query(manager);
 
-    EntityManager manager = factory.createEntityManager();
-    List<TestAccessControlEntity> entities = query(manager);
+		// 原始数据校验，
+		assertEquals(2, entities.size());
+		assertEquals("entity1", entities.get(0).getName());
+		assertEquals(true, entities.get(0).getMarried());
+		assertEquals("entity2", entities.get(1).getName());
+		assertEquals(true, entities.get(1).getMarried());
 
-    // 原始数据校验，
-    assertEquals(2, entities.size());
-    assertEquals("entity1", entities.get(0).getName());
-    assertEquals(true, entities.get(0).getMarried());
-    assertEquals("entity2", entities.get(1).getName());
-    assertEquals(true, entities.get(1).getMarried());
+		// mock 访问控制定义服务
+		AccessControlDefinitionService definitionService = mock(AccessControlDefinitionService.class);
+		when(definitionService.load(any())).thenReturn(new NoScopeTestAccessControlDefinition());
 
-    // mock 访问控制定义服务
-    AccessControlDefinitionService definitionService = mock(AccessControlDefinitionService.class);
-    when(definitionService.load(any())).thenReturn(new NoFieldTestAccessControlDefinition());
+		// 执行访问控制的业务操作
+		AccessControlServiceImpl control = new AccessControlServiceImpl(definitionService);
+		try {
+			List<TestAccessControlResponse> result = control.doControl(() -> {
+				return new TestAccessControlMetaData(10, "F", "get");
+			}, (consumer) -> {
+				CriteriaBuilder builder = manager.getCriteriaBuilder();
+				// 查询范围修改
+				return doOperation(manager, builder, consumer);
+			});
 
-    // 执行访问控制的业务操作
-    AccessControlServiceImpl control = new AccessControlServiceImpl(definitionService);
-    try {
-      List<TestAccessControlResponse> result = control.doControl(() -> {
-        return new TestAccessControlMetaData(10, "F", "get");
-      }, (consumer) -> {
-        CriteriaBuilder builder = manager.getCriteriaBuilder();
-        // 查询范围修改
-        return doOperation(manager, builder, consumer);
-      });
+			assertEquals(2, result.size());
+			assertEquals("entity1", result.get(0).getName());
+			assertNull(result.get(0).getMarried());
+			assertEquals("entity2", result.get(1).getName());
+			assertNull(result.get(1).getMarried());
 
-      assertEquals(2, result.size());
-      assertEquals("entity1", result.get(0).getName());
-      assertTrue(result.get(0).getMarried());
-      assertEquals("entity2", result.get(1).getName());
-      assertTrue(result.get(1).getMarried());
+		} catch (Exception e) {
+			assertTrue(e instanceof NoPrivilegeException);
+		}
+	}
 
-    } catch (Exception e) {
-      assertTrue(e instanceof NoPrivilegeException);
-    }
-  }
+	@Test
+	public void testControl4() {
+		SessionFactory factory = getEntityManagerFactory();
+		// 初始化数据
+		init(factory);
 
-  private List<TestAccessControlResponse> doOperation(EntityManager manager, CriteriaBuilder builder,
-      AccessSpecificationBuilder consumer) throws Exception {
-    CriteriaQuery<TestAccessControlEntity> query = builder.createQuery(TestAccessControlEntity.class);
-    Root<TestAccessControlEntity> root = query.from(TestAccessControlEntity.class);
+		EntityManager manager = factory.createEntityManager();
+		List<TestAccessControlEntity> entities = query(manager);
 
-    // 构建JPA Query
-    TestSpecification testSpecification = new TestSpecification(builder, root);
-    consumer.apply(testSpecification);
-    
-    Predicate predicate;
-    if (null != testSpecification.getPredicate()) {
-      predicate = builder.and(testSpecification.getPredicate(), builder.ge(root.get("age"), 0));
-    } else {
-      predicate = builder.ge(root.get("age"), 0);
-    }
-    query.where(predicate);
+		// 原始数据校验，
+		assertEquals(2, entities.size());
+		assertEquals("entity1", entities.get(0).getName());
+		assertEquals(true, entities.get(0).getMarried());
+		assertEquals("entity2", entities.get(1).getName());
+		assertEquals(true, entities.get(1).getMarried());
 
-    TypedQuery<TestAccessControlEntity> dbQuery = manager.createQuery(query);
-    List<TestAccessControlEntity> entities = dbQuery.getResultList();
+		// mock 访问控制定义服务
+		AccessControlDefinitionService definitionService = mock(AccessControlDefinitionService.class);
+		when(definitionService.load(any())).thenReturn(new NoFieldTestAccessControlDefinition());
 
-    List<TestAccessControlResponse> responses = new ArrayList<>();
-    for (TestAccessControlEntity entity : entities) {
-      responses.add(new TestAccessControlResponse(entity.getId(), entity.getAge(), entity.getGender(),
-          entity.getMarried(), entity.getName()));
-    }
+		// 执行访问控制的业务操作
+		AccessControlServiceImpl control = new AccessControlServiceImpl(definitionService);
+		try {
+			List<TestAccessControlResponse> result = control.doControl(() -> {
+				return new TestAccessControlMetaData(10, "F", "get");
+			}, (consumer) -> {
+				CriteriaBuilder builder = manager.getCriteriaBuilder();
+				// 查询范围修改
+				return doOperation(manager, builder, consumer);
+			});
 
-    return responses;
-  }
+			assertEquals(2, result.size());
+			assertEquals("entity1", result.get(0).getName());
+			assertTrue(result.get(0).getMarried());
+			assertEquals("entity2", result.get(1).getName());
+			assertTrue(result.get(1).getMarried());
 
-  private List<TestAccessControlEntity> query(EntityManager manager) {
-    CriteriaBuilder builder = manager.getCriteriaBuilder();
-    CriteriaQuery<TestAccessControlEntity> query = builder.createQuery(TestAccessControlEntity.class);
-    Root<TestAccessControlEntity> root = query.from(TestAccessControlEntity.class);
-    Predicate predicate = builder.ge(root.get("age"), 0);
-    query.where(predicate);
+		} catch (Exception e) {
+			assertTrue(e instanceof NoPrivilegeException);
+		}
+	}
 
-    TypedQuery<TestAccessControlEntity> dbQuery = manager.createQuery(query);
-    return dbQuery.getResultList();
-  }
+	private List<TestAccessControlResponse> doOperation(EntityManager manager, CriteriaBuilder builder,
+																											AccessSpecificationBuilder consumer) throws Exception {
+		CriteriaQuery<TestAccessControlEntity> query = builder.createQuery(TestAccessControlEntity.class);
+		Root<TestAccessControlEntity> root = query.from(TestAccessControlEntity.class);
 
-  private void init(SessionFactory factory) {
-    try (Session session = factory.openSession()) {
-      Transaction transaction = session.beginTransaction();
+		// 构建JPA Query
+		TestSpecification testSpecification = new TestSpecification(builder, root);
+		consumer.apply(testSpecification);
 
-      TestAccessControlEntity entity1 = new TestAccessControlEntity();
-      entity1.setAge(10);
-      entity1.setMarried(true);
-      entity1.setGender("F");
-      entity1.setName("entity1");
-      session.save(entity1);
+		Predicate predicate;
+		if (null != testSpecification.getPredicate()) {
+			predicate = builder.and(testSpecification.getPredicate(), builder.ge(root.get("age"), 0));
+		} else {
+			predicate = builder.ge(root.get("age"), 0);
+		}
+		query.where(predicate);
 
-      TestAccessControlEntity entity2 = new TestAccessControlEntity();
-      entity2.setAge(1);
-      entity2.setMarried(true);
-      entity2.setGender("F");
-      entity2.setName("entity2");
-      session.save(entity2);
+		TypedQuery<TestAccessControlEntity> dbQuery = manager.createQuery(query);
+		List<TestAccessControlEntity> entities = dbQuery.getResultList();
 
-      transaction.commit();
-    }
+		List<TestAccessControlResponse> responses = new ArrayList<>();
+		for (TestAccessControlEntity entity : entities) {
+			responses.add(new TestAccessControlResponse(entity.getId(), entity.getAge(), entity.getGender(),
+							entity.getMarried(), entity.getName()));
+		}
 
-  }
+		return responses;
+	}
 
-  private SessionFactory getEntityManagerFactory() {
+	private List<TestAccessControlEntity> query(EntityManager manager) {
+		CriteriaBuilder builder = manager.getCriteriaBuilder();
+		CriteriaQuery<TestAccessControlEntity> query = builder.createQuery(TestAccessControlEntity.class);
+		Root<TestAccessControlEntity> root = query.from(TestAccessControlEntity.class);
+		Predicate predicate = builder.ge(root.get("age"), 0);
+		query.where(predicate);
 
-    Configuration cfg = new Configuration();
-    cfg.configure();
-    // 添加映射文件或注解的实体类
-    cfg.addAnnotatedClass(TestAccessControlEntity.class); // 替换为你的实体类
+		TypedQuery<TestAccessControlEntity> dbQuery = manager.createQuery(query);
+		return dbQuery.getResultList();
+	}
 
-    // 创建SessionFactory
-    SessionFactory sessionFactory = cfg.buildSessionFactory();
-    return sessionFactory;
-  }
+	private void init(SessionFactory factory) {
+		try (Session session = factory.openSession()) {
+			Transaction transaction = session.beginTransaction();
 
-  public class TestAccessControlDefinition implements AccessControlDefinition {
+			TestAccessControlEntity entity1 = new TestAccessControlEntity();
+			entity1.setAge(10);
+			entity1.setMarried(true);
+			entity1.setGender("F");
+			entity1.setName("entity1");
+			session.save(entity1);
 
-    @Override
-    public List<Privilege> getPrivileges() {
-      try {
-        return Arrays.asList(
-            new PrivilegeImpl("\"@(/age)\" > 5 && \"@(/gender)\" == \"F\""),
-            new PrivilegeImpl("\"@(/age)\" > 10 && \"@(/gender)\" == \"F\""));
-      } catch (ExpressionException e) {
-        return new ArrayList<>();
-      }
-    }
+			TestAccessControlEntity entity2 = new TestAccessControlEntity();
+			entity2.setAge(1);
+			entity2.setMarried(true);
+			entity2.setGender("F");
+			entity2.setName("entity2");
+			session.save(entity2);
 
-    @Override
-    public List<Scope> getScopes() {
-      SQLImpl sql = new ScopeImpl.SQLImpl(ScopeImpl.OP.GE, "user", "age", 5);
-      try {
-        return Arrays.asList(
-            new ScopeImpl("\"@(/age)\" > 5 && \"@(/gender)\" == \"F\"", sql),
-            new ScopeImpl("\"@(/age)\" < 5 && \"@(/gender)\" == \"F\"", sql));
-      } catch (ExpressionException e) {
-        return new ArrayList<>();
-      }
-    }
+			transaction.commit();
+		}
 
-    @Override
-    public List<View> getFields() {
-      List<String> ignores = Arrays.asList("/married");
-      List<String> full = new ArrayList<>();
-      try {
-        return Arrays.asList(
-            new ViewImpl("\"@(/age)\" > 5 && \"@(/gender)\" == \"F\"", ignores),
-            new ViewImpl("\"@(/age)\" > 10 && \"@(/gender)\" == \"F\"", full));
-      } catch (ExpressionException e) {
-        return new ArrayList<>();
-      }
-    }
+	}
 
-  }
+	private SessionFactory getEntityManagerFactory() {
 
-  public class NoScopeTestAccessControlDefinition implements AccessControlDefinition {
+		Configuration cfg = new Configuration();
+		cfg.configure();
+		// 添加映射文件或注解的实体类
+		cfg.addAnnotatedClass(TestAccessControlEntity.class); // 替换为你的实体类
 
-    @Override
-    public List<Privilege> getPrivileges() {
-      try {
-        return Arrays.asList(
-            new PrivilegeImpl("\"@(/age)\" > 5 && \"@(/gender)\" == \"F\""),
-            new PrivilegeImpl("\"@(/age)\" < 5 && \"@(/gender)\" == \"F\""));
-      } catch (ExpressionException e) {
-        return new ArrayList<>();
-      }
-    }
+		// 创建SessionFactory
+		SessionFactory sessionFactory = cfg.buildSessionFactory();
+		return sessionFactory;
+	}
 
-    @Override
-    public List<Scope> getScopes() {
-      return new ArrayList<>();
-    }
+	public class TestAccessControlDefinition implements AccessControlDefinition {
 
-    @Override
-    public List<View> getFields() {
-      List<String> ignores = Arrays.asList("/married");
-      List<String> full = new ArrayList<>();
-      try {
-        return Arrays.asList(
-            new ViewImpl("\"@(/age)\" > 5 && \"@(/gender)\" == \"F\"", ignores),
-            new ViewImpl("\"@(/age)\" < 5 && \"@(/gender)\" == \"F\"", full));
-      } catch (ExpressionException e) {
-        return new ArrayList<>();
-      }
-    }
+		@Override
+		public List<Privilege> getPrivileges() {
+			try {
+				return Arrays.asList(
+								new PrivilegeImpl("\"@(/age)\" > 5 && \"@(/gender)\" == \"F\""),
+								new PrivilegeImpl("\"@(/age)\" > 10 && \"@(/gender)\" == \"F\""));
+			} catch (ExpressionException e) {
+				return new ArrayList<>();
+			}
+		}
 
-  }
+		@Override
+		public List<Scope> getScopes() {
+			WhereImpl sql = new WhereImpl(ScopeImpl.OP.GE, "user", "age", 5);
+			try {
+				return Arrays.asList(
+								new ScopeImpl("\"@(/age)\" > 5 && \"@(/gender)\" == \"F\"", sql),
+								new ScopeImpl("\"@(/age)\" < 5 && \"@(/gender)\" == \"F\"", sql));
+			} catch (ExpressionException e) {
+				return new ArrayList<>();
+			}
+		}
 
-  public class NoPrivilegeTestAccessControlDefinition implements AccessControlDefinition {
+		@Override
+		public List<View> getFields() {
+			List<String> ignores = Arrays.asList("/married");
+			List<String> full = new ArrayList<>();
+			try {
+				return Arrays.asList(
+								new ViewImpl("\"@(/age)\" > 5 && \"@(/gender)\" == \"F\"", ignores),
+								new ViewImpl("\"@(/age)\" > 10 && \"@(/gender)\" == \"F\"", full));
+			} catch (ExpressionException e) {
+				return new ArrayList<>();
+			}
+		}
 
-    @Override
-    public List<Privilege> getPrivileges() {
-      return new ArrayList<>();
-    }
+		@Override
+		public String getKey() {
+			return "";
+		}
 
-    @Override
-    public List<Scope> getScopes() {
-      SQLImpl sql = new ScopeImpl.SQLImpl(ScopeImpl.OP.GE, "user", "age", 5);
-      try {
-        return Arrays.asList(
-            new ScopeImpl("\"@(/age)\" > 5 && \"@(/gender)\" == \"F\"", sql),
-            new ScopeImpl("\"@(/age)\" < 5 && \"@(/gender)\" == \"F\"", sql));
-      } catch (ExpressionException e) {
-        return new ArrayList<>();
-      }
-    }
+	}
 
-    @Override
-    public List<View> getFields() {
-      List<String> ignores = Arrays.asList("/married");
-      List<String> full = new ArrayList<>();
-      try {
-        return Arrays.asList(
-            new ViewImpl("\"@(/age)\" > 5 && \"@(/gender)\" == \"F\"", ignores),
-            new ViewImpl("\"@(/age)\" > 10 && \"@(/gender)\" == \"F\"", full));
-      } catch (ExpressionException e) {
-        return new ArrayList<>();
-      }
-    }
+	public class NoScopeTestAccessControlDefinition implements AccessControlDefinition {
 
-  }
+		@Override
+		public List<Privilege> getPrivileges() {
+			try {
+				return Arrays.asList(
+								new PrivilegeImpl("\"@(/age)\" > 5 && \"@(/gender)\" == \"F\""),
+								new PrivilegeImpl("\"@(/age)\" < 5 && \"@(/gender)\" == \"F\""));
+			} catch (ExpressionException e) {
+				return new ArrayList<>();
+			}
+		}
 
-  public class NoFieldTestAccessControlDefinition implements AccessControlDefinition {
+		@Override
+		public List<Scope> getScopes() {
+			return new ArrayList<>();
+		}
 
-    @Override
-    public List<Privilege> getPrivileges() {
-      return new ArrayList<>();
-    }
+		@Override
+		public List<View> getFields() {
+			List<String> ignores = Arrays.asList("/married");
+			List<String> full = new ArrayList<>();
+			try {
+				return Arrays.asList(
+								new ViewImpl("\"@(/age)\" > 5 && \"@(/gender)\" == \"F\"", ignores),
+								new ViewImpl("\"@(/age)\" < 5 && \"@(/gender)\" == \"F\"", full));
+			} catch (ExpressionException e) {
+				return new ArrayList<>();
+			}
+		}
 
-    @Override
-    public List<Scope> getScopes() {
-      SQLImpl sql = new ScopeImpl.SQLImpl(ScopeImpl.OP.GE, "user", "age", 5);
-      try {
-        return Arrays.asList(
-            new ScopeImpl("\"@(/age)\" > 5 && \"@(/gender)\" == \"F\"", sql),
-            new ScopeImpl("\"@(/age)\" < 5 && \"@(/gender)\" == \"M\"", sql));
-      } catch (ExpressionException e) {
-        return new ArrayList<>();
-      }
-    }
+		@Override
+		public String getKey() {
+			return "";
+		}
 
-    @Override
-    public List<View> getFields() {
-      return new ArrayList<>();
-    }
+	}
 
-  }
+	public class NoPrivilegeTestAccessControlDefinition implements AccessControlDefinition {
+
+		@Override
+		public List<Privilege> getPrivileges() {
+			return new ArrayList<>();
+		}
+
+		@Override
+		public List<Scope> getScopes() {
+			WhereImpl sql = new WhereImpl(ScopeImpl.OP.GE, "user", "age", 5);
+			try {
+				return Arrays.asList(
+								new ScopeImpl("\"@(/age)\" > 5 && \"@(/gender)\" == \"F\"", sql),
+								new ScopeImpl("\"@(/age)\" < 5 && \"@(/gender)\" == \"F\"", sql));
+			} catch (ExpressionException e) {
+				return new ArrayList<>();
+			}
+		}
+
+		@Override
+		public List<View> getFields() {
+			List<String> ignores = Arrays.asList("/married");
+			List<String> full = new ArrayList<>();
+			try {
+				return Arrays.asList(
+								new ViewImpl("\"@(/age)\" > 5 && \"@(/gender)\" == \"F\"", ignores),
+								new ViewImpl("\"@(/age)\" > 10 && \"@(/gender)\" == \"F\"", full));
+			} catch (ExpressionException e) {
+				return new ArrayList<>();
+			}
+		}
+
+		@Override
+		public String getKey() {
+			return "";
+		}
+
+	}
+
+	public class NoFieldTestAccessControlDefinition implements AccessControlDefinition {
+
+		@Override
+		public List<Privilege> getPrivileges() {
+			return new ArrayList<>();
+		}
+
+		@Override
+		public List<Scope> getScopes() {
+			WhereImpl sql = new WhereImpl(ScopeImpl.OP.GE, "user", "age", 5);
+			try {
+				return Arrays.asList(
+								new ScopeImpl("\"@(/age)\" > 5 && \"@(/gender)\" == \"F\"", sql),
+								new ScopeImpl("\"@(/age)\" < 5 && \"@(/gender)\" == \"M\"", sql));
+			} catch (ExpressionException e) {
+				return new ArrayList<>();
+			}
+		}
+
+		@Override
+		public List<View> getFields() {
+			return new ArrayList<>();
+		}
+
+		@Override
+		public String getKey() {
+			return "";
+		}
+
+	}
 }

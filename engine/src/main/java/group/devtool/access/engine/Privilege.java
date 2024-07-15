@@ -16,6 +16,6 @@ public interface Privilege {
   /**
    * @return 匹配条件
    */
-  Condition condition();
+  Condition getCondition();
 
 }

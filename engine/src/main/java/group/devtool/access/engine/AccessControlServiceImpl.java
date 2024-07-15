@@ -18,7 +18,7 @@ public class AccessControlServiceImpl implements AccessControlService {
   private AccessControlDefinitionService definitionService;
 
   public AccessControlServiceImpl() {
-    this.definitionService = new AccessControlDefinitionServiceImpl();
+    this.definitionService = new ResourcesAccessControlDefinitionService();
   }
 
   public AccessControlServiceImpl(AccessControlDefinitionService definitionService) {
@@ -46,30 +46,30 @@ public class AccessControlServiceImpl implements AccessControlService {
     return response;
   }
 
-  private Scope findScope(MetaData metadata, List<Scope> scopes)
+  private Scope findScope(MetaData metadata, List<? extends Scope> scopes)
       throws ExpressionException, AccessControlException {
     for (Scope scope : scopes) {
-      if (scope.condition().match(metadata)) {
+      if (scope.getCondition().match(metadata)) {
         return scope;
       }
     }
     return null;
   }
 
-  private boolean accessible(List<Privilege> privileges, MetaData metadata)
+  private boolean accessible(List<? extends Privilege> privileges, MetaData metadata)
       throws AccessControlException, ExpressionException {
     for (Privilege privilege : privileges) {
-      if (privilege.condition().match(metadata)) {
+      if (privilege.getCondition().match(metadata)) {
         return true;
       }
     }
     return false;
   }
 
-  private <T> void clipResponse(T response, MetaData metadata, List<View> views) throws AccessControlException, ExpressionException {
+  private <T> void clipResponse(T response, MetaData metadata, List<? extends View> views) throws AccessControlException, ExpressionException {
     View fit = null;
     for (View view: views) {
-      if (view.condition().match(metadata)) {
+      if (view.getCondition().match(metadata)) {
         fit = view;
       }
     }

@@ -16,7 +16,7 @@ public interface Scope {
   /**
    * @return 匹配条件
    */
-  Condition condition();
+  Condition getCondition();
 
   /**
    * @return 查询约束条件

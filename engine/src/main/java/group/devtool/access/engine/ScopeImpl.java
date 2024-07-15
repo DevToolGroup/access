@@ -1,6 +1,6 @@
 /*
- * The Access Access Control Engine, 
- * unlike the RBAC model that utilizes static data to implement access control, 
+ * The Access Access Control Engine,
+ * unlike the RBAC model that utilizes static data to implement access control,
  * realizes API access control by evaluating if dynamic data satisfies the access control rules.
  *
  * License: GNU GENERAL PUBLIC LICENSE, Version 3, 29 June 2007
@@ -8,144 +8,217 @@
  */
 package group.devtool.access.engine;
 
+import java.util.Arrays;
+import java.util.Objects;
+
 /**
  * 访问控制查询范围
  */
 public class ScopeImpl implements Scope {
 
-  private Condition condition;
+	private Condition condition;
 
-  private SQL sql;
+	private Where where;
 
-  public ScopeImpl(String expression, SQL sql) throws ExpressionException {
-    this.condition = new ConditionImpl(expression);
-    this.sql = sql;
-  }
+	public ScopeImpl() {
 
-  @Override
-  public Condition condition() {
-    return condition;
-  }
+	}
 
-  @Override
-  public void specification(Specification specification) {
-    doSpecification(sql, specification);
-  }
+	public ScopeImpl(String expression, Where where) throws ExpressionException {
+		this.condition = new ConditionImpl(expression);
+		this.where = where;
+	}
 
-  private Specification doSpecification(SQL element, Specification specification) {
-    switch (element.op()) {
-      case AND:
-        return specification.and(doSpecification(element.left(), specification),
-            doSpecification(element.right(), specification));
-      case OR:
-        return specification.or(doSpecification(element.left(), specification),
-            doSpecification(element.right(), specification));
-      case GE:
-        return specification.ge(sql.getStatement());
-      case GT:
-        return specification.gt(sql.getStatement());
-      case LT:
-        return specification.lt(sql.getStatement());
-      case LE:
-        return specification.le(sql.getStatement());
-      case LIKE:
-        return specification.like(sql.getStatement());
-      case NOTLIKE:
-        return specification.notLike(sql.getStatement());
-      case LEFTLIKE:
-        return specification.leftLike(sql.getStatement());
-      case RIGHTLIKE:
-        return specification.rightLike(sql.getStatement());
-      case EQ:
-        return specification.equal(sql.getStatement());
-      case NE:
-        return specification.notEqual(sql.getStatement());
-      case BETWEEN:
-        return specification.between(sql.getStatement());
-      default:
-        throw new UnsupportedOperationException("暂不支持当前");
-    }
-  }
+	@Override
+	public Condition getCondition() {
+		return condition;
+	}
 
-  public static enum OP {
-    AND,
-    OR,
-    GE,
-    GT,
-    LE,
-    LT,
-    EQ,
-    NE,
-    LIKE,
-    NOTLIKE,
-    LEFTLIKE,
-    RIGHTLIKE,
-    IN,
-    NOTIN,
-    BETWEEN,
-    ;
+	public void setCondition(String expression) throws ExpressionException {
+		this.condition = new ConditionImpl(expression);
+	}
 
-  }
+	public Where getWhere() {
+		return where;
+	}
 
-  public static interface SQL {
+	public void setWhere(WhereImpl where) {
+		this.where = where;
+	}
 
-    OP op();
+	@Override
+	public void specification(Specification specification) {
+		doSpecification(where, specification);
+	}
 
-    SQL left();
+	private Specification doSpecification(Where element, Specification specification) {
+		switch (element.getOp()) {
+			case AND:
+				return specification.and(doSpecification(element.getLeft(), specification),
+								doSpecification(element.getRight(), specification));
+			case OR:
+				return specification.or(doSpecification(element.getLeft(), specification),
+								doSpecification(element.getRight(), specification));
+			case GE:
+				return specification.ge(where.getStatement());
+			case GT:
+				return specification.gt(where.getStatement());
+			case LT:
+				return specification.lt(where.getStatement());
+			case LE:
+				return specification.le(where.getStatement());
+			case LIKE:
+				return specification.like(where.getStatement());
+			case NOTLIKE:
+				return specification.notLike(where.getStatement());
+			case LEFTLIKE:
+				return specification.leftLike(where.getStatement());
+			case RIGHTLIKE:
+				return specification.rightLike(where.getStatement());
+			case EQ:
+				return specification.equal(where.getStatement());
+			case NE:
+				return specification.notEqual(where.getStatement());
+			case BETWEEN:
+				return specification.between(where.getStatement());
+			case NOTIN:
+				return specification.notIn(where.getStatement());
+			case IN:
+				return specification.in(where.getStatement());
+			case ISNULL:
+				return specification.isNull(where.getStatement());
+			case ISNOTNULL:
+				return specification.isNotNull(where.getStatement());
+			default:
+				throw new UnsupportedOperationException("暂不支持当前");
+		}
+	}
 
-    SQL right();
+	// 过滤条件 操作符
+	public enum OP {
+		AND,
+		OR,
+		GE,
+		GT,
+		LE,
+		LT,
+		EQ,
+		NE,
+		LIKE,
+		NOTLIKE,
+		LEFTLIKE,
+		RIGHTLIKE,
+		IN,
+		NOTIN,
+		BETWEEN,
+		ISNULL,
+		ISNOTNULL,
+		;
 
-    Statement getStatement();
+	}
 
-  }
+	// 过滤条件
+	public interface Where {
 
-  public static class SQLImpl implements SQL {
+		OP getOp();
 
-    private OP op;
+		Where getLeft();
 
-    private SQL left;
+		Where getRight();
 
-    private SQL right;
+		Statement getStatement();
 
-    private String entity;
+	}
 
-    private String column;
+	/**
+	 * 过滤条件默认实现
+	 */
+	public static class WhereImpl implements Where {
 
-    private Object[] parameters;
+		private OP op;
 
-    public SQLImpl(OP op, String entity, String column, Object... parameters) {
-      this.op = op;
-      this.entity = entity;
-      this.column = column;
-      this.parameters = parameters;
-    }
+		private Where left;
 
-    public SQLImpl(OP op, SQL left, SQL right) {
-      this.op = op;
-      this.left = left;
-      this.right = right;
-    }
+		private Where right;
 
-    @Override
-    public OP op() {
-      return op;
-    }
+		private String entity;
 
-    @Override
-    public SQL left() {
-      return left;
-    }
+		private String column;
 
-    @Override
-    public SQL right() {
-      return right;
-    }
+		private Object[] parameters;
 
-    @Override
-    public Statement getStatement() {
-      return new StatementImpl(entity, column, parameters);
-    }
+		public WhereImpl() {
+		}
 
-  }
+		public WhereImpl(OP op, String entity, String column, Object... parameters) {
+			this.op = op;
+			this.entity = entity;
+			this.column = column;
+			this.parameters = parameters;
+		}
+
+		public WhereImpl(OP op, Where left, Where right) {
+			this.op = op;
+			this.left = left;
+			this.right = right;
+		}
+
+		@Override
+		public OP getOp() {
+			return op;
+		}
+
+		@Override
+		public Where getLeft() {
+			return left;
+		}
+
+		@Override
+		public Where getRight() {
+			return right;
+		}
+
+		@Override
+		public Statement getStatement() {
+			return new StatementImpl(entity, column, parameters);
+		}
+
+		public String getEntity() {
+			return entity;
+		}
+
+		public String getColumn() {
+			return column;
+		}
+
+		public Object[] getParameters() {
+			return parameters;
+		}
+
+		public void setOp(OP op) {
+			this.op = op;
+		}
+
+		public void setLeft(Where left) {
+			this.left = left;
+		}
+
+		public void setRight(Where right) {
+			this.right = right;
+		}
+
+		public void setEntity(String entity) {
+			this.entity = entity;
+		}
+
+		public void setColumn(String column) {
+			this.column = column;
+		}
+
+		public void setParameters(Object[] parameters) {
+			this.parameters = parameters;
+		}
+
+	}
 
 }

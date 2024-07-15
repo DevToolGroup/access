@@ -15,7 +15,7 @@ import group.devtool.access.engine.Path.State;
  */
 public class ConditionImpl implements Condition {
 
-  private Expression expression;
+  private final Expression expression;
 
   public ConditionImpl(Expression expression) {
     this.expression = expression;

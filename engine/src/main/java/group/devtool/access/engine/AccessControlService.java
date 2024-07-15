@@ -25,7 +25,7 @@ package group.devtool.access.engine;
  */
 public interface AccessControlService {
 
-  public final static AccessControlService defaultService = new AccessControlServiceImpl();
+  AccessControlService defaultService = new AccessControlServiceImpl();
 
   /**
    * 根据定义的动态访问控制元数据，实现对接口的访问控制
@@ -35,7 +35,6 @@ public interface AccessControlService {
    * @param operation 业务操作
    * @return 实际业务响应
    * @throws AccessControlException  访问控制限制异常
-   * @throws JsonProcessingException 序列化异常
    * @throws ExpressionException
    * @throws Exception
    */

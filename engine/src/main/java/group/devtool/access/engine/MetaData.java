@@ -13,4 +13,9 @@ package group.devtool.access.engine;
  */
 public interface MetaData {
 
+	/**
+	 * @return 访问控制元数据唯一值
+	 */
+	public String getKey();
+
 }

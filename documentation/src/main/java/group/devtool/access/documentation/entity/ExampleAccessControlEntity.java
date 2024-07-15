@@ -6,18 +6,13 @@
  * License: GNU GENERAL PUBLIC LICENSE, Version 3, 29 June 2007
  * See the license.txt file in the root directory or see <http://www.gnu.org/licenses/>.
  */
-package group.devtool.access.engine.entity;
+package group.devtool.access.documentation.entity;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.Table;
+import javax.persistence.*;
 
 @Entity
 @Table(name = "entity")
-public class TestAccessControlEntity {
+public class ExampleAccessControlEntity {
   @Id
   @GeneratedValue(strategy = GenerationType.AUTO)
   private Integer id;

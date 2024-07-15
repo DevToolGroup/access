@@ -1,0 +1,25 @@
+key: "access"
+privileges:
+  - condition: "\"@(/age)\" > 5 && \"@(/gender)\" == \"F\""
+  - condition: "\"@(/age)\" > 10 && \"@(/gender)\" == \"F\""
+scopes:
+  - condition: "\"@(/age)\" > 5 && \"@(/gender)\" == \"F\""
+    where:
+      op: "GE"
+      entity: "user"
+      column: "age"
+      parameters:
+        - 5
+  - condition: "\"@(/age)\" < 5 && \"@(/gender)\" == \"F\""
+    where:
+      op: "GE"
+      entity: "user"
+      column: "age"
+      parameters:
+        - 5
+fields:
+  - condition: "\"@(/age)\" > 5 && \"@(/gender)\" == \"F\""
+    paths:
+      - "/married"
+  - condition: "\"@(/age)\" > 10 && \"@(/gender)\" == \"F\""
+    paths:

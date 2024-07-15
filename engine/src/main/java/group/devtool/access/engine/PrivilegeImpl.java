@@ -1,6 +1,6 @@
 /*
- * The Access Access Control Engine, 
- * unlike the RBAC model that utilizes static data to implement access control, 
+ * The Access Access Control Engine,
+ * unlike the RBAC model that utilizes static data to implement access control,
  * realizes API access control by evaluating if dynamic data satisfies the access control rules.
  *
  * License: GNU GENERAL PUBLIC LICENSE, Version 3, 29 June 2007
@@ -13,19 +13,27 @@ package group.devtool.access.engine;
  */
 public class PrivilegeImpl implements Privilege {
 
-  private Condition condition;
+	private Condition condition;
 
-  public PrivilegeImpl(String expression) throws ExpressionException {
-    condition = new ConditionImpl(expression);
-  }
+	public PrivilegeImpl() {
 
-  public PrivilegeImpl(Condition condition) {
-    this.condition = condition;
-  }
+	}
 
-  @Override
-  public Condition condition() {
-    return condition;
-  }
+	public PrivilegeImpl(String expression) throws ExpressionException {
+		condition = new ConditionImpl(expression);
+	}
+
+	public PrivilegeImpl(Condition condition) {
+		this.condition = condition;
+	}
+
+	@Override
+	public Condition getCondition() {
+		return condition;
+	}
+
+	public void setCondition(String expression) throws ExpressionException {
+		this.condition = new ConditionImpl(expression);
+	}
 
 }
